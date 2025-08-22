@@ -1,1 +1,80 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import streamlit as st
+
+# Streamlit title
+st.title("Delhi Air Quality Index (AQI) & Pollutant Analysis")
+
+# Load dataset
+df = pd.read_csv("delhiaqi.csv")
+
+# Convert date column to datetime
+df['date'] = pd.to_datetime(df['date'])
+
+# Extract month and year
+df['month'] = df['date'].dt.month
+df['year'] = df['date'].dt.year
+
+# List of pollutants
+pollutants = ['pm2_5', 'pm10', 'no2', 'so2', 'o3', 'co', 'nh3', 'no']
+
+# --- Sidebar Filters ---
+st.sidebar.header("⚙️ Filters")
+
+# Month selector
+month_map = {
+    1: "January", 2: "February", 3: "March", 4: "April",
+    5: "May", 6: "June", 7: "July", 8: "August",
+    9: "September", 10: "October", 11: "November", 12: "December"
+}
+unique_months = sorted(df['month'].unique())
+selected_month = st.sidebar.selectbox("📅 Select Month:", unique_months, format_func=lambda x: month_map[x])
+
+# Pollutant selector
+selected_pollutant = st.sidebar.selectbox("🌫️ Select Pollutant:", pollutants)
+
+# Filter data for selected month
+df_month = df[df['month'] == selected_month]
+
+# --- Daily trend of selected pollutant ---
+st.subheader(f"📈 Daily Trend of {selected_pollutant.upper()} in {month_map[selected_month]}")
+daily = df_month.groupby(df_month['date'].dt.date).mean(numeric_only=True).reset_index()
+
+fig, ax = plt.subplots(figsize=(12,6))
+ax.plot(daily['date'], daily[selected_pollutant], marker='o', label=f"{selected_pollutant.upper()} Daily Levels")
+ax.set_xlabel("Date")
+ax.set_ylabel("Concentration (µg/m³ or ppm)")
+ax.set_title(f"Daily Trend of {selected_pollutant.upper()} in {month_map[selected_month]} (Delhi)")
+ax.legend()
+plt.xticks(rotation=45)
+st.pyplot(fig)
+
+# --- Seasonal variation (all months) ---
+st.subheader(f"📊 Seasonal Variation of {selected_pollutant.upper()} (All Months)")
+monthly = df.groupby('month').mean(numeric_only=True).reset_index()
+fig, ax = plt.subplots(figsize=(10,5))
+ax.bar(monthly['month'], monthly[selected_pollutant], color="orange")
+ax.set_xlabel("Month")
+ax.set_ylabel("Average Concentration (µg/m³ or ppm)")
+ax.set_title(f"Seasonal Variation of {selected_pollutant.upper()} (Delhi)")
+st.pyplot(fig)
+
+# --- Average levels of all pollutants (selected month only) ---
+st.subheader(f"📊 Average Levels of All Pollutants in {month_map[selected_month]}")
+fig, ax = plt.subplots(figsize=(10,6))
+df_month[pollutants].mean().sort_values(ascending=False).plot(kind="bar", color="teal", ax=ax)
+ax.set_title(f"Average Pollutant Levels in {month_map[selected_month]} (Delhi)")
+ax.set_ylabel("Concentration (µg/m³ or ppm)")
+plt.xticks(rotation=45)
+st.pyplot(fig)
+
+# --- Correlation heatmap (selected month only) ---
+st.subheader(f"📊 Correlation Between Pollutants in {month_map[selected_month]}")
+fig, ax = plt.subplots(figsize=(8,6))
+sns.heatmap(df_month[pollutants].corr(), annot=True, cmap="coolwarm", ax=ax)
+ax.set_title(f"Correlation Between Pollutants in {month_map[selected_month]}")
+st.pyplot(fig)
+
+st.success(f"✅ Analysis completed for {selected_pollutant.upper()} in {month_map[selected_month]}.")
 
